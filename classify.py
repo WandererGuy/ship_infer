@@ -7,7 +7,10 @@ import torchvision.models as models
 import yaml
 with open("config/classify_class.yaml", "r") as file:
     CLASS_MAP = yaml.safe_load(file)
+with open("config/config.yaml", "r") as file:
+    data = yaml.safe_load(file)
 
+CLASSIFY_MODEL_PATH = data["CLASSIFY_MODEL_PATH"]
 
 # Load the pre-trained ResNet-18 model
 model = models.resnet18(pretrained=True)
@@ -15,7 +18,7 @@ model = models.resnet18(pretrained=True)
 num_classes = 4
 model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
 
-model.load_state_dict(torch.load('checkpoints/classify_model.pth'))
+model.load_state_dict(torch.load(CLASSIFY_MODEL_PATH))
 
 # Set the model to evaluation mode (important for inference)
 model.eval()

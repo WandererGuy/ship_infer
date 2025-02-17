@@ -69,18 +69,22 @@ def annotate_objects(image_path, obj_dict, res_path):
         # Crop the image using the defined coordinates
         cropped_image = pil_image.crop(coordinates)
         # Add text label    
+    
+        # If the image has an alpha channel (RGBA), convert it to RGB
+        if cropped_image.mode != 'RGB':
+            cropped_image = cropped_image.convert('RGB')
         final_pred = infer(cropped_image, model, device)
 
         # Draw bounding box
-        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 6)
+        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
         
         # Place text label at the top
         text_top = final_pred
-        cv2.putText(image, text_top, (int(x1), int(y1) - 10), font, 0.8, (0, 0, 255), 3, cv2.LINE_AA)
+        cv2.putText(image, text_top, (int(x1), int(y1) - 10), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
         
         # Place text label at the bottom (you can adjust the position below)
         text_bottom = final_pred
-        cv2.putText(image, text_bottom, (int(x1), int(y2) + 30), font, 0.8, (0, 0, 255), 3, cv2.LINE_AA)
+        cv2.putText(image, text_bottom, (int(x1), int(y2) + 30), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
     
     # Save or display the image with annotations
     cv2.imwrite(res_path, image)  # You can also use cv2.imshow() to display it directly
@@ -95,7 +99,7 @@ async def detect_ship(
     image_path: str = Form(...),
 ):
     # Run inference on 'bus.jpg' with arguments
-    batch_yolo_result = MODEL.predict(source=image_path, save=True, imgsz=640, conf=0.4)
+    batch_yolo_result = MODEL.predict(source=image_path, save=True, imgsz=640, conf=0.30)
     obj_dict = extract_objects(batch_yolo_result)
     res_name = str(uuid.uuid4()) + ".jpg"
     res_path = os.path.join(static_folder, res_name)
