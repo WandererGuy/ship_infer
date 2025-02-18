@@ -85,11 +85,12 @@ def annotate_objects(image_path, obj_dict, res_path):
         # Place text label at the top
         text_top = final_pred
         cv2.putText(image, text_top, (int(x1), int(y1) - 10), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
-        
+        # cv2.putText(image, text_top, (int(x1) + 5, int(y1) + 20), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
         # Place text label at the bottom (you can adjust the position below)
         text_bottom = final_pred
         cv2.putText(image, text_bottom, (int(x1), int(y2) + 30), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
-    
+        # cv2.putText(image, text_top, (int(x1) + 5, int(y1) + 20), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+
     # Save or display the image with annotations
     cv2.imwrite(res_path, image)  # You can also use cv2.imshow() to display it directly
 
