@@ -14,14 +14,10 @@ CLASSIFY_MODEL_PATH = data["CLASSIFY_MODEL_PATH"]
 
 # Load the pre-trained ResNet-18 model
 model = models.resnet18(pretrained=True)
-# Load the state_dict
 num_classes = 4
 model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-
 model.load_state_dict(torch.load(CLASSIFY_MODEL_PATH))
 
-# Set the model to evaluation mode (important for inference)
-model.eval()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print (device)
@@ -37,7 +33,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
-
+print ("----------------- LOAĐED MODEL RESNET -----------------")
 
 
 # Define a function to perform inference on an input image

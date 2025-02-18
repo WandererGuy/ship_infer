@@ -44,7 +44,7 @@ async def root():
 
 
 def main():
-    change_ip_main()
+    # change_ip_main()
     sleep(2)
     print('INITIALIZING FASTAPI SERVER')
     if empty_to_false(production) == False: 
