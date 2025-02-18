@@ -1,2 +1,2 @@
 CUSTOM_CHECKPOINT_PATH : "checkpoints/best_boat_1702.pt"
-CLASSIFY_MODEL_PATH: "checkpoints/classify_model_1702.pth"
+CLASSIFY_MODEL_PATH: "checkpoints/classify_model_1802.pth"
