@@ -1,7 +1,5 @@
 env
 __pycache__
-*.pt
 *.jpg
 *.png
 static
-*.pth
