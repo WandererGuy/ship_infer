@@ -14,11 +14,12 @@ from classify import model as classify_model # Example usage
 
 config = configparser.ConfigParser()
 config.read('config/config.ini')
+
 current_script_directory = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_script_directory)
 host_ip = config['DEFAULT']['host'] 
 port_num = config['DEFAULT']['port'] 
-static_folder = "static"
+static_folder = os.path.join(parent_dir,"static")
 static_video_folder = os.path.join(static_folder, "video")
 static_image_folder = os.path.join(static_folder, "image")
 os.makedirs(static_video_folder, exist_ok=True)
@@ -31,7 +32,7 @@ def load_model(custom_checkpoint_path):
 with open("config/config.yaml", "r") as file:
     data = yaml.safe_load(file)
     CUSTOM_CHECKPOINT_PATH = data["CUSTOM_CHECKPOINT_PATH"]
-MODEL = load_model(CUSTOM_CHECKPOINT_PATH)
+YOLO_MODEL = load_model(CUSTOM_CHECKPOINT_PATH)
 print ("----------------- LOAĐED MODEL YOLO -----------------")
 
 with open("config/ship_class.yaml", "r") as file:
@@ -52,9 +53,10 @@ def extract_objects(batch_yolo_result):
 
 import cv2
 
-import cv2
-
 from PIL import Image
+
+def fix_path(path):
+    return path.replace('\\\\', '//').replace("\\", "/")
 
 def cal_distance(focal_pixel, h_real_mm, h_image_pixel):
     distance = focal_pixel * h_real_mm / h_image_pixel
@@ -68,13 +70,15 @@ def get_distance(focal_pixel, h_real_mm, h_image_pixel):
 def get_h_real_mm(final_pred_class):
     print ("final_pred_class", final_pred_class)
     if final_pred_class == "tau_danh_ca":
-        return [2500, 4000] 
+        return [3000]
     elif final_pred_class == "tau_canh_sat":
-        return [6000, 9000]
+        # return [6000, 9000]
+        return [7000]
     elif final_pred_class == "tau_van_tai":
-        return [2500, 15000]
+        # return [2500, 15000]
+        return [10000]
     elif final_pred_class == "unknown":
-        return [1500, 15000] 
+        return [4000]
 
 def annotate_objects(image_path, obj_dict, res_path):
     image = cv2.imread(image_path)
@@ -82,7 +86,7 @@ def annotate_objects(image_path, obj_dict, res_path):
     
     # Define the font
     font = cv2.FONT_HERSHEY_SIMPLEX
-    focal_pixel = get_focal_pixel(image_path)
+    # focal_pixel = get_focal_pixel(image_path)
     for _, value in obj_dict.items():  # loop through bounding box and associated class
         obj_class, xyxy = value
         x1, y1, x2, y2 = xyxy
@@ -99,22 +103,34 @@ def annotate_objects(image_path, obj_dict, res_path):
         if cropped_image.mode != 'RGB':
             cropped_image = cropped_image.convert('RGB')
         final_pred_class = infer(cropped_image, classify_model, device)
-
-        h_image_pixel = abs(y2 - y1)
-        
-        h_real_mm_range = get_h_real_mm(final_pred_class)
-        h_real_mm_min, h_real_mm_max = h_real_mm_range
-        distance_min = get_distance(focal_pixel, h_real_mm_min, h_image_pixel)
-        distance_max = get_distance(focal_pixel, h_real_mm_max, h_image_pixel)
-        # Draw bounding box
-        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
-        
         # Place text label at the top
         text_top = final_pred_class 
+        cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
+
         cv2.putText(image, text_top, (int(x1), int(y1) - 10), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
-        # Place text label at the bottom (you can adjust the position below)
-        text_bottom = str(distance_min) + "-" + str(distance_max) 
-        cv2.putText(image, text_bottom, (int(x1), int(y2) + 30), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+
+        # h_image_pixel = abs(y2 - y1)
+        
+        # h_real_mm_range = get_h_real_mm(final_pred_class)
+        # if len(h_real_mm_range) == 2:
+        #     h_real_mm_min, h_real_mm_max = h_real_mm_range
+        #     distance_min = get_distance(focal_pixel, h_real_mm_min, h_image_pixel)
+        #     distance_max = get_distance(focal_pixel, h_real_mm_max, h_image_pixel)
+        #     # Draw bounding box
+            
+        #     # Place text label at the bottom (you can adjust the position below)
+        #     text_bottom = str(distance_min) + "-" + str(distance_max) 
+        #     cv2.putText(image, text_bottom, (int(x1), int(y2) + 30), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+        # elif len(h_real_mm_range) == 1:
+        #     h_real_mm = h_real_mm_range[0]
+        #     distance = get_distance(focal_pixel, h_real_mm, h_image_pixel)
+
+            
+        #     # Place text label at the bottom (you can adjust the position below)
+        #     text_bottom = str(distance)
+        #     cv2.putText(image, text_bottom, (int(x1), int(y2) + 30), font, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+
+            # Draw bounding box
     print ("annotate into image", res_path)
     # Save or display the image with annotations
     cv2.imwrite(res_path, image)  # You can also use cv2.imshow() to display it directly
@@ -153,7 +169,7 @@ def get_focal_pixel(image_path):
     return focal_pixel
 def process_image(file_path: str, res_path: str):
     start = time.time()
-    batch_yolo_result = MODEL.predict(source=file_path, save=False, imgsz=640, conf=0.30, verbose = False)
+    batch_yolo_result = YOLO_MODEL.predict(source=file_path, save=False, imgsz=640, conf=0.30, verbose = False)
     end1 = time.time()
     print ('yolo process time: ', end1 - start)
     obj_dict = extract_objects(batch_yolo_result)
@@ -177,7 +193,7 @@ def collect_image_paths(folder_path):
 #     def __init__(self, image_path: str):
 #         self.image_path = image_path
 #         self.focal_pixel = get_focal_pixel(self.image_path)
-#         self.batch_yolo_result = MODEL.predict(source=self.image_path, save=False, imgsz=640, conf=0.30, verbose = False)
+#         self.batch_yolo_result = YOLO_MODEL.predict(source=self.image_path, save=False, imgsz=640, conf=0.30, verbose = False)
 #         obj_dict = extract_objects(self.batch_yolo_result)
 
 # class Item:
@@ -200,6 +216,84 @@ static_save_folder_image = os.path.join("static", "image")
 static_save_folder_folder = os.path.join("static", "folder")
 os.makedirs(static_save_folder_image, exist_ok=True)
 os.makedirs(static_save_folder_folder, exist_ok=True)
+
+
+import cv2
+import os
+
+def create_video_from_images(folder_path, output_video_name='output_video.mp4', frame_rate=30.0):
+    """
+    Create a video from images in a folder.
+    
+    :param folder_path: Path to the folder containing images
+    :param output_video_name: Name of the output video file
+    :param frame_rate: Frame rate of the video
+    """
+    # Get the list of image files (you can adjust the extensions if needed)
+    images = [img for img in os.listdir(folder_path) if img.endswith(".jpg") or img.endswith(".png")]
+
+    # Sort images (optional, depending on how you want them ordered)
+    image_dict = {}
+    for image in images:
+        num = int(image.split('.')[0])
+        image_dict[image] = num
+    sorted_dict = dict(sorted(image_dict.items(), key=lambda item: item[1]))
+    images = list(sorted_dict.keys())
+
+    # Check if there are any images in the folder
+    if not images:
+        print("No images found in the specified folder.")
+        return
+
+    # Read the first image to get the dimensions (width and height)
+    first_image = cv2.imread(os.path.join(folder_path, images[0]))
+    height, width, layers = first_image.shape
+
+    # Define the video codec and create a VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # You can change 'mp4v' to 'XVID' for AVI format
+    output_video = cv2.VideoWriter(output_video_name, fourcc, frame_rate, (width, height))
+
+    # Loop through the images and write each to the video
+    for image in images:
+        img_path = os.path.join(folder_path, image)
+        img = cv2.imread(img_path)
+        output_video.write(img)
+
+    # Release the VideoWriter and close any open windows
+    output_video.release()
+    cv2.destroyAllWindows()
+
+    print(f"Video created successfully and saved as {output_video_name}.")
+
+
+# Example usage:
+# create_video_from_images('path_to_your_folder', 'output_video.mp4', 30.0)
+
+import cv2
+
+def get_video_frame_rate(video_path):
+    """
+    Get the frame rate (FPS) of a video file.
+    
+    :param video_path: Path to the video file
+    :return: Frame rate (FPS) of the video
+    """
+    # Open the video file
+    video = cv2.VideoCapture(video_path)
+    
+    if not video.isOpened():
+        print("Error: Could not open the video file.")
+        return None
+
+    # Get the frame rate (FPS)
+    fps = video.get(cv2.CAP_PROP_FPS)
+    
+    # Release the video capture object
+    video.release()
+    
+    return fps
+
+
 @router.post("/detect-ship-image/")
 async def detect_ship_image(
     file_path: str = Form(...)
@@ -208,7 +302,7 @@ async def detect_ship_image(
     res_path = os.path.join(static_save_folder_image, res_name)
 
     process_image(file_path, res_path)
-    url = f"http://{host_ip}:{port_num}/" + res_path.replace("\\", "/")
+    url = f"http://{host_ip}:{port_num}/" + fix_path(res_path)
     return {"result": url}
 
 @router.post("/detect-ship-image-folder/")
@@ -223,45 +317,54 @@ async def detect_ship_image_folder(
         res_name = str(uuid.uuid4()) + ".jpg"
         res_path = os.path.join(folder_save, res_name)
         process_image(image_path, res_path)
-    url = folder_save.replace("\\", "/")
+    url = fix_path(folder_save)
     return {"result": url}
 
-# @router.post("/detect-ship-video/")
-# async def detect_ship_video(
-#     file_path: str = Form(...)
-# ):
-    
-#     video_capture, total_frames = start_video(video_path = file_path)
-#     num_capture_rate = 1
-#     frame_count = 0
-#     extracted_frame_count = 0
-#     video_save_name = str(uuid.uuid4())
-#     save_video_folder = os.path.join(static_video_folder, video_save_name)
-#     save_process_video_folder = os.path.join(static_video_folder, video_save_name + "_processed")
-#     os.makedirs(save_video_folder, exist_ok=True)
-#     os.makedirs(save_process_video_folder, exist_ok=True)
-#     # start_time = time.time()
-#     while True:
-        
-#         # Read the next frame
-#         ret, frame = video_capture.read()
-        
-#         if not ret:
-#             break  # Exit loop when video ends
-#         if frame_count % num_capture_rate == 0:  # Capture every 4th frame
-#             # Save the frame as an image
-#             save_temp_path = os.path.join(save_video_folder, f'{extracted_frame_count}.jpg')
-#             cv2.imwrite(save_temp_path, frame)
-#             res_path = process_image(save_temp_path, static_save_folder=save_process_video_folder)
-#             extracted_frame_count += 1
-#         # if time.time() - start_time > 10:
-#         #     print ("processed frame: ", extracted_frame_count)
-#         #     break 
-#         frame_count += 1
 
-#     # Release the video capture object
-#     video_capture.release()
-#     return {"result": save_process_video_folder}
+
+
+@router.post("/detect-ship-video/")
+async def detect_ship_video(
+    file_path: str = Form(...)
+):
+    
+    video_capture, total_frames = start_video(video_path = file_path)
+    fps = get_video_frame_rate(video_path = file_path)
+    num_capture_rate = 1
+    frame_count = 0
+    extracted_frame_count = 0
+    video_save_name = str(uuid.uuid4())
+    save_video_folder = os.path.join(static_video_folder, video_save_name)
+    save_process_video_folder = os.path.join(static_video_folder, video_save_name + "_processed")
+    os.makedirs(save_video_folder, exist_ok=True)
+    os.makedirs(save_process_video_folder, exist_ok=True)
+    start_time = time.time()
+    while True:
+        
+        # Read the next frame
+        ret, frame = video_capture.read()
+        
+        if not ret:
+            break  # Exit loop when video ends
+        if frame_count % num_capture_rate == 0:  # Capture every 4th frame
+            # Save the frame as an image
+            save_temp_path = os.path.join(save_video_folder, f'{extracted_frame_count}.jpg')
+            cv2.imwrite(save_temp_path, frame)
+            save_frame_name = str(extracted_frame_count) + ".jpg"
+            process_image(save_temp_path, os.path.join(save_process_video_folder, save_frame_name))
+            extracted_frame_count += 1
+        if time.time() - start_time > 30:
+            print ("processed last obtained frame: ", extracted_frame_count)
+            break 
+        frame_count += 1
+    output_video_path = os.path.join(static_video_folder, video_save_name + "_processed.mp4")
+    create_video_from_images(folder_path = save_process_video_folder, 
+                             output_video_name=output_video_path, 
+                             frame_rate=fps)
+
+    # Release the video capture object
+    video_capture.release()
+    return {"result": fix_path(output_video_path)}
 
 
 
